@@ -1,7 +1,7 @@
 # Frozen API contract
 
-`stage8-pre-spring-ai-v1.0.0-openapi.json` is a byte-for-byte copy of the sealed Java runtime contract. The adjacent SHA-256 sidecar and `contract-manifest.json` are checked by CI before any Go module work begins.
+`stage8-pre-spring-ai-v1.0.0-openapi.json` is a byte-for-byte copy of the sealed Java runtime contract. Its SHA-256 sidecar is immutable and checked by CI.
 
-The sealed document contains 95 operations: 52 core operations and 43 AI, administration, and demo operations that remain owned by Java during the migration. The roadmap says 96 operations; the discrepancy is recorded as an open reconciliation item rather than silently adding an endpoint.
+The sealed document contains 95 operations: 52 core operations and 43 AI, administration, and demo operations. The Java controller inventory contains one additional operation omitted from that historical document: `POST /api/ai/rag/ask/stream`. `runtime-supplement.json` freezes that operation, including its request fields, SSE content type, events, stage values, and response headers. Its sidecar is checked independently.
 
-The Go service uses `/api` as its public context path. The first week only implements the health operation and does not claim ownership of the remaining core or Java-owned routes.
+The effective runtime contract is therefore 96 operations: 95 sealed operations plus one supplemental streaming operation. The Go service uses `/api` as its public context path. Week 1 only implements the health operation and does not claim ownership of the remaining routes.

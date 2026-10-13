@@ -5,20 +5,36 @@
   "openapi": {
     "file": "stage8-pre-spring-ai-v1.0.0-openapi.json",
     "sha256": "6251fc7e067bffcdf648b2a3bc939c1bb808467debecc4dfb0e13339dae6f1b2",
+    "operations": 95,
     "source": "LearningManage/docs/api/baseline/stage8-pre-spring-ai-v1.0.0-openapi.json"
   },
+  "runtimeSupplement": {
+    "file": "runtime-supplement.json",
+    "sha256": "534dcbbf94acc9e6c6264e8000def99810528e747f255a97aa914ec78aa2ce2d",
+    "operations": 1,
+    "source": "LearningManage/src/main/java/com/spt/learningmanage/controller/RagController.java:50"
+  },
   "roadmapTarget": { "operations": 96, "coreOperations": 52 },
-  "javaBaseline": {
-    "operations": 95,
+  "runtimeInventory": {
+    "operations": 96,
     "coreOperations": 52,
-    "nonCoreOperations": 43,
-    "status": "verified_from_openapi_and_controller_inventory"
+    "nonCoreOperations": 44,
+    "status": "resolved_from_java_controller_and_frontend_streaming_evidence"
   },
   "countReconciliation": {
-    "status": "open",
-    "difference": 1,
-    "note": "The migration plan names 96 operations, while the sealed Java OpenAPI and controller inventory both contain 95. No unconfirmed operation is invented in the Go contract; reconcile the missing operation before the first module cutover."
+    "status": "resolved",
+    "difference": 0,
+    "note": "The sealed OpenAPI contains 95 operations. Java RagController and the frontend streaming client add the omitted POST /api/ai/rag/ask/stream operation, so the effective runtime contract is 95 sealed operations plus one frozen supplement."
   },
+  "supplementalOperations": [
+    {
+      "method": "POST",
+      "path": "/api/ai/rag/ask/stream",
+      "source": "src/main/java/com/spt/learningmanage/controller/RagController.java:50",
+      "reason": "Present in Java runtime/controller and frontend, omitted from sealed OpenAPI baseline",
+      "contractFile": "runtime-supplement.json"
+    }
+  ],
   "coreOperations": [
     {"method":"GET","path":"/api/health"},
     {"method":"POST","path":"/api/user/register"},

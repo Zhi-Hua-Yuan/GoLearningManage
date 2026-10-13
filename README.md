@@ -10,10 +10,10 @@ This repository contains the Phase 0 foundation:
 - Gin HTTP server with graceful shutdown, `/api` context path, response envelope, and `X-Trace-Id` propagation.
 - Runnable `GET /api/health` returning `{ "code": 0, "message": "ok", "data": "ok" }`.
 - Byte-for-byte copies of Java Flyway V1–V9 and the published checksum list.
-- Sealed Java OpenAPI baseline plus a 52-operation core ledger.
+- Complete 96-operation runtime contract: 95 sealed OpenAPI operations plus the omitted RAG streaming operation in `api/openapi/runtime-supplement.json`.
 - CI for baseline checks, formatting, vet, tests, and build.
 
-The sealed Java OpenAPI document currently contains 95 operations. The roadmap mentions 96; that one-operation discrepancy is explicitly recorded in `api/openapi/contract-manifest.json` and must be resolved before module cutover. No endpoint is invented to make the count appear to match.
+The sealed Java OpenAPI document remains immutable at 95 operations. The Java controller inventory and frontend streaming client identify the 96th operation, `POST /api/ai/rag/ask/stream`; it is frozen separately with its own checksum rather than altering the published baseline.
 
 ## Local commands
 

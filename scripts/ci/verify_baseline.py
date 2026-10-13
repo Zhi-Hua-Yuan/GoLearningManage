@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the immutable Phase 0 migrations and OpenAPI contract."""
+"""Verify the immutable Phase 0 migrations and complete 96-operation contract."""
 from __future__ import annotations
 import hashlib
 import json
@@ -43,35 +43,79 @@ def verify_migrations(root: Path) -> None:
     if checked != 9:
         fail(f"expected 9 published migrations, found {checked}")
 
+def collect_operations(document: dict, base_path: str) -> set[tuple[str, str]]:
+    prefix = base_path.rstrip("/")
+    return {
+        (method.upper(), prefix + path)
+        for path, item in document["paths"].items()
+        for method in item
+        if method.lower() in METHODS
+    }
+
+def verify_sidecar(path: Path, expected_hash: str) -> None:
+    parts = path.read_text(encoding="utf-8").split()
+    if len(parts) < 2 or parts[1] != path.name.removesuffix(".sha256"):
+        fail(f"invalid checksum sidecar {path}")
+    if parts[0].lower() != expected_hash.lower():
+        fail(f"checksum sidecar {path} does not match {expected_hash}")
+
 def verify_openapi(root: Path) -> None:
     openapi_dir = root / "api" / "openapi"
     contract = json.loads((openapi_dir / "contract-manifest.json").read_text(encoding="utf-8"))
-    openapi_path = openapi_dir / contract["openapi"]["file"]
-    document = json.loads(openapi_path.read_text(encoding="utf-8"))
-    base_path = contract["basePath"].rstrip("/")
-    operations = {(method.upper(), base_path + path) for path, item in document["paths"].items() for method in item if method.lower() in METHODS}
-    expected = contract["javaBaseline"]["operations"]
-    if len(operations) != expected:
-        fail(f"OpenAPI operation count {len(operations)} != {expected}")
-    core = {(item["method"].upper(), item["path"]) for item in contract["coreOperations"]}
-    if len(core) != contract["javaBaseline"]["coreOperations"]:
+    base_path = contract["basePath"]
+
+    sealed_path = openapi_dir / contract["openapi"]["file"]
+    sealed_document = json.loads(sealed_path.read_text(encoding="utf-8"))
+    sealed_operations = collect_operations(sealed_document, base_path)
+    if len(sealed_operations) != contract["openapi"]["operations"]:
+        fail(f"sealed OpenAPI operation count {len(sealed_operations)} != {contract['openapi']['operations']}")
+    sealed_hash = sha256(sealed_path)
+    if sealed_hash.lower() != contract["openapi"]["sha256"].lower():
+        fail(f"sealed OpenAPI checksum {sealed_hash} != {contract['openapi']['sha256']}")
+    verify_sidecar(openapi_dir / f"{sealed_path.name}.sha256", sealed_hash)
+
+    supplement_meta = contract["runtimeSupplement"]
+    supplement_path = openapi_dir / supplement_meta["file"]
+    supplement_document = json.loads(supplement_path.read_text(encoding="utf-8"))
+    supplement_operations = collect_operations(supplement_document, base_path)
+    if len(supplement_operations) != supplement_meta["operations"]:
+        fail(f"runtime supplement operation count {len(supplement_operations)} != {supplement_meta['operations']}")
+    supplement_hash = sha256(supplement_path)
+    if supplement_hash.lower() != supplement_meta["sha256"].lower():
+        fail(f"runtime supplement checksum {supplement_hash} != {supplement_meta['sha256']}")
+    verify_sidecar(openapi_dir / f"{supplement_path.name}.sha256", supplement_hash)
+    if sealed_operations & supplement_operations:
+        fail("runtime supplement duplicates a sealed OpenAPI operation")
+
+    manifest_supplement = {
+        (item["method"].upper(), item["path"])
+        for item in contract["supplementalOperations"]
+    }
+    if manifest_supplement != supplement_operations:
+        fail("supplemental operation ledger does not match runtime supplement")
+
+    runtime_operations = sealed_operations | supplement_operations
+    runtime_expected = contract["runtimeInventory"]["operations"]
+    if len(runtime_operations) != runtime_expected:
+        fail(f"runtime operation count {len(runtime_operations)} != {runtime_expected}")
+    core = {
+        (item["method"].upper(), item["path"])
+        for item in contract["coreOperations"]
+    }
+    if len(core) != contract["runtimeInventory"]["coreOperations"]:
         fail("core operation ledger count does not match manifest")
-    missing = sorted(core - operations)
+    missing = sorted(core - runtime_operations)
     if missing:
-        fail(f"core operations missing from OpenAPI: {missing}")
-    actual_hash = sha256(openapi_path).lower()
-    if actual_hash != contract["openapi"]["sha256"].lower():
-        fail(f"OpenAPI checksum {actual_hash} != {contract['openapi']['sha256']}")
-    sidecar = openapi_dir / f"{openapi_path.name}.sha256"
-    sidecar_parts = sidecar.read_text(encoding="utf-8").split()
-    if len(sidecar_parts) < 2 or sidecar_parts[1] != openapi_path.name or sidecar_parts[0].lower() != actual_hash:
-        fail(f"invalid OpenAPI sidecar {sidecar}")
+        fail(f"core operations missing from runtime contract: {missing}")
+    if contract["countReconciliation"]["status"] != "resolved":
+        fail("operation count reconciliation is not resolved")
+
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
     verify_migrations(root)
     verify_openapi(root)
-    print("Phase 0 baseline verification: PASS (9 migrations, 95 OpenAPI operations, 52 core operations)")
+    print("Phase 0 baseline verification: PASS (9 migrations, 96 runtime operations, 52 core operations)")
     return 0
 
 if __name__ == "__main__":
