@@ -1,0 +1,6 @@
+* text=auto
+# These files are checksum-sealed and must not be rewritten by checkout filters.
+db/migration/V*.sql -text
+db/migration/published-migrations.sha256 -text
+api/openapi/stage8-pre-spring-ai-v1.0.0-openapi.json -text
+api/openapi/*.sha256 -text
